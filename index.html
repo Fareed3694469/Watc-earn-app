@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch & Earn</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f8ff;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .auth-container {
+            display: block;
+        }
+        .app-container {
+            display: none;
+        }
+        h1 {
+            color: #006633;
+        }
+        .ad-container {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px dashed #006633;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #006633;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            width: 80%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #balance {
+            font-size: 24px;
+            font-weight: bold;
+            color: #006633;
+        }
+        .rules {
+            text-align: left;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #555;
+        }
+        #reset-time {
+            color: #d9534f;
+            font-weight: bold;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 400px;
+        }
+        .tab-buttons {
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            background: #ddd;
+            color: #333;
+        }
+        .tab-button.active {
+            background: #006633;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Authentication Container -->
+    <div class="container auth-container" id="auth-container">
+        <h1>Watch & Earn</h1>
+        <div class="tab-buttons">
+            <button class="tab-button active" onclick="showTab('login')">Login</button>
+            <button class="tab-button" onclick="showTab('register')">Register</button>
+        </div>
+        
+        <div id="login" class="auth-tab">
+            <h2>Login</h2>
+            <input type="text" id="login-email" placeholder="Email">
+            <input type="password" id="login-password" placeholder="Password">
+            <button onclick="login()">Login</button>
+            <p id="login-error" style="color:red;"></p>
+        </div>
+        
+        <div id="register" class="auth-tab" style="display:none;">
+            <h2>Register</h2>
+            <input type="text" id="register-name" placeholder="Full Name">
+            <input type="text" id="register-email" placeholder="Email">
+            <input type="password" id="register-password" placeholder="Password">
+            <button onclick="register()">Register</button>
+            <p id="register-error" style="color:red;"></p>
+        </div>
+    </div>
+
+    <!-- App Container -->
+    <div class="container app-container" id="app-container">
+        <div style="text-align:right;">
+            <button onclick="logout()" style="background:#d9534f;">Logout</button>
+        </div>
+        <h1>Welcome, <span id="user-name"></span></h1>
+        <p>Today's Ads: <span id="ads-count">0/10</span></p>
+        <p>Resets in: <span id="reset-time">23:59:59</span></p>
+        <div id="balance">0.00$</div>
+        
+        <div class="ad-container" id="ad-display">
+            <p>Click the button below to watch an ad.</p>
+        </div>
+        
+        <button onclick="startAd()">Watch Ad (Earn 0.01¢)</button>
+        <button onclick="showWithdrawalModal()" id="withdraw-btn" disabled>Withdraw (Minimum $3)</button>
+        
+        <div class="rules">
+            <h3>Rules:</h3>
+            <p>1. Maximum 10 ads per day</p>
+            <p>2. Earn 0.01¢ per ad</p>
+            <p>3. Withdrawal available at $3+</p>
+            <p id="ad-status"></p>
+        </div>
+    </div>
+
+    <!-- Withdrawal Modal -->
+    <div class="modal" id="withdrawal-modal">
+        <div class="modal-content">
+            <h2>Select Payment Method</h2>
+            <div class="payment-option" onclick="selectPayment('easypaisa')">
+                <img src="https://easypaisa.com.pk/wp-content/uploads/2021/07/EasyPaisa-Logo.png" width="100" alt="EasyPaisa">
+            </div>
+            <div class="payment-option" onclick="selectPayment('jazzcash')">
+                <img src="https://www.jazzcash.com.pk/wp-content/uploads/2022/03/JazzCash-Logo.png" width="100" alt="JazzCash">
+            </div>
+            <div id="account-details">
+                <h3 id="payment-method-name"></h3>
+                <input type="text" id="account-number" placeholder="Account/Mobile Number">
+                <input type="text" id="account-name" placeholder="Full Name">
+                <button onclick="submitWithdrawal()">Request Withdrawal</button>
+                <button onclick="hideWithdrawalModal()" style="background:red;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // App Configuration
+        const config = {
+            maxAdsPerDay: 10,
+            earningPerAd: 0.01,
+            minWithdrawal: 3,
+            adLinks: [
+                "https://www.profitableratecpm.com/qjpzkh6z?key=9ecb83a4640e1aab7866a873c0ce4741"
+            ]
+        };
+
+        // App State
+        let state = {
+            currentUser: null,
+            users: JSON.parse(localStorage.getItem('watchEarnUsers')) || [],
+            adTab: null,
+            adTimer: null,
+            adCompleted: false,
+            selectedPaymentMethod: null,
+            resetTimer: null
+        };
+
+        // DOM Elements
+        const elements = {
+            authContainer: document.getElementById('auth-container'),
+            appContainer: document.getElementById('app-container'),
+            loginEmail: document.getElementById('login-email'),
+            loginPassword: document.getElementById('login-password'),
+            loginError: document.getElementById('login-error'),
+            registerName: document.getElementById('register-name'),
+            registerEmail: document.getElementById('register-email'),
+            registerPassword: document.getElementById('register-password'),
+            registerError: document.getElementById('register-error'),
+            userName: document.getElementById('user-name'),
+            adsCount: document.getElementById('ads-count'),
+            balanceDisplay: document.getElementById('balance'),
+            adDisplay: document.getElementById('ad-display'),
+            adStatus: document.getElementById('ad-status'),
+            withdrawBtn: document.getElementById('withdraw-btn'),
+            withdrawalModal: document.getElementById('withdrawal-modal'),
+            paymentMethodName: document.getElementById('payment-method-name'),
+            accountDetails: document.getElementById('account-details'),
+            accountNumber: document.getElementById('account-number'),
+            accountName: document.getElementById('account-name'),
+            resetTime: document.getElementById('reset-time')
+        };
+
+        // Initialize the app
+        function init() {
+            checkAuthState();
+            startResetTimer();
+        }
+
+        // Check if user is logged in
+        function checkAuthState() {
+            const loggedInUser = localStorage.getItem('watchEarnCurrentUser');
+            if (loggedInUser) {
+                state.currentUser = JSON.parse(loggedInUser);
+                showApp();
+            } else {
+                showAuth();
+            }
+        }
+
+        // Show authentication screen
+        function showAuth() {
+            elements.authContainer.style.display = 'block';
+            elements.appContainer.style.display = 'none';
+        }
+
+        // Show main app screen
+        function showApp() {
+            elements.authContainer.style.display = 'none';
+            elements.appContainer.style.display = 'block';
+            elements.userName.textContent = state.currentUser.name;
+            updateUI();
+        }
+
+        // Show tab (login/register)
+        function showTab(tabId) {
+            document.querySelectorAll('.auth-tab').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            document.getElementById(tabId).style.display = 'block';
+            document.querySelector(`button[onclick="showTab('${tabId}')"]`).classList.add('active');
+        }
+
+        // Register new user
+        function register() {
+            const name = elements.registerName.value.trim();
+            const email = elements.registerEmail.value.trim();
+            const password = elements.registerPassword.value.trim();
+            
+            if (!name || !email || !password) {
+                elements.registerError.textContent = "Please fill all fields!";
+                return;
+            }
+            
+            if (state.users.some(user => user.email === email)) {
+                elements.registerError.textContent = "Email already registered!";
+                return;
+            }
+            
+            const newUser = {
+                id: Date.now().toString(),
+                name,
+                email,
+                password,
+                balance: 0,
+                adsWatchedToday: 0,
+                lastResetDate: new Date().toDateString(),
+                withdrawalHistory: []
+            };
+            
+            state.users.push(newUser);
+            localStorage.setItem('watchEarnUsers', JSON.stringify(state.users));
+            
+            state.currentUser = newUser;
+            localStorage.setItem('watchEarnCurrentUser', JSON.stringify(newUser));
+            
+            showApp();
+        }
+
+        // Login user
+        function login() {
+            const email = elements.loginEmail.value.trim();
+            const password = elements.loginPassword.value.trim();
+            
+            const user = state.users.find(u => u.email === email && u.password === password);
+            
+            if (!user) {
+                elements.loginError.textContent = "Invalid email or password!";
+                return;
+            }
+            
+            state.currentUser = user;
+            localStorage.setItem('watchEarnCurrentUser', JSON.stringify(user));
+            
+            showApp();
+        }
+
+        // Logout user
+        function logout() {
+            state.currentUser = null;
+            localStorage.removeItem('watchEarnCurrentUser');
+            showAuth();
+        }
+
+        // Check daily reset
+        function checkDailyReset() {
+            const today = new Date().toDateString();
+            if (today !== state.currentUser.lastResetDate) {
+                state.currentUser.adsWatchedToday = 0;
+                state.currentUser.lastResetDate = today;
+                saveUserData();
+            }
+        }
+
+        // Update countdown timer until midnight
+        function startResetTimer() {
+            updateResetTimerDisplay();
+            state.resetTimer = setInterval(updateResetTimerDisplay, 1000);
+        }
+
+        function updateResetTimerDisplay() {
+            const now = new Date();
+            const midnight = new Date();
+            midnight.setHours(24, 0, 0, 0);
+            
+            const diff = midnight - now;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            elements.resetTime.textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Start watching an ad
+        function startAd() {
+            checkDailyReset();
+            
+            if (state.currentUser.adsWatchedToday >= config.maxAdsPerDay) {
+                alert("You've reached today's ad limit (10 ads). Come back tomorrow!");
+                return;
+            }
+
+            elements.adStatus.textContent = "Please keep the ad tab open for 30 seconds...";
+            elements.adDisplay.innerHTML = `
+                <h3>Watching Ad (30 seconds)</h3>
+                <div id="countdown">30</div>
+                <p>The ad has opened in a new tab. Please don't close it!</p>
+            `;
+
+            // Open random ad in new tab
+            const randomAd = config.adLinks[Math.floor(Math.random() * config.adLinks.length)];
+            state.adTab = window.open(randomAd, '_blank');
+            state.adCompleted = false;
+
+            // Check if tab is closed
+            const tabChecker = setInterval(() => {
+                if (state.adTab.closed) {
+                    clearInterval(tabChecker);
+                    clearInterval(state.adTimer);
+                    if (!state.adCompleted) {
+                        elements.adStatus.textContent = "Ad not completed! Please watch the full 30 seconds.";
+                        elements.adDisplay.innerHTML = `<p>Click the button to try again.</p>`;
+                    }
+                }
+            }, 1000);
+
+            // Start countdown
+            let seconds = 30;
+            state.adTimer = setInterval(() => {
+                seconds--;
+                document.getElementById('countdown').textContent = seconds;
+                
+                if (seconds <= 0) {
+                    clearInterval(state.adTimer);
+                    completeAd();
+                    state.adCompleted = true;
+                }
+            }, 1000);
+        }
+
+        // Complete ad watching
+        function completeAd() {
+            state.currentUser.adsWatchedToday++;
+            state.currentUser.balance += config.earningPerAd;
+            saveUserData();
+            
+            elements.adDisplay.innerHTML = `
+                <p>✔ Ad completed! You earned <strong>$${config.earningPerAd.toFixed(2)}</strong>.</p>
+            `;
+            elements.adStatus.textContent = "";
+            
+            updateUI();
+        }
+
+        // Update UI
+        function updateUI() {
+            elements.balanceDisplay.textContent = `$${state.currentUser.balance.toFixed(2)}`;
+            elements.adsCount.textContent = `${state.currentUser.adsWatchedToday}/${config.maxAdsPerDay}`;
+            elements.withdrawBtn.disabled = state.currentUser.balance < config.minWithdrawal;
+        }
+
+        // Save user data
+        function saveUserData() {
+            const userIndex = state.users.findIndex(u => u.id === state.currentUser.id);
+            if (userIndex !== -1) {
+                state.users[userIndex] = state.currentUser;
+                localStorage.setItem('watchEarnUsers', JSON.stringify(state.users));
+                localStorage.setItem('watchEarnCurrentUser', JSON.stringify(state.currentUser));
+            }
+        }
+
+        // Show withdrawal modal
+        function showWithdrawalModal() {
+            if (state.currentUser.balance >= config.minWithdrawal) {
+                elements.withdrawalModal.style.display = "flex";
+            } else {
+                alert(`❌ Minimum $${config.minWithdrawal} required for withdrawal.`);
+            }
+        }
+
+        // Hide withdrawal modal
+        function hideWithdrawalModal() {
+            elements.withdrawalModal.style.display = "none";
+            elements.accountDetails.style.display = "none";
+        }
+
+        // Select payment method
+        function selectPayment(method) {
+            state.selectedPaymentMethod = method;
+            elements.paymentMethodName.textContent = `${method} Account Details`;
+            elements.accountDetails.style.display = "block";
+        }
+
+        // Submit withdrawal request
+        function submitWithdrawal() {
+            const accountNumber = elements.accountNumber.value.trim();
+            const accountName = elements.accountName.value.trim();
+            
+            if (!accountNumber || !accountName) {
+                alert("Please fill all details!");
+                return;
+            }
+            
+            // Add to withdrawal history
+            state.currentUser.withdrawalHistory.push({
+                date: new Date().toLocaleString(),
+                amount: state.currentUser.balance,
+                method: state.selectedPaymentMethod,
+                accountNumber: accountNumber,
+                accountName: accountName,
+                status: "Pending"
+            });
+            
+            alert(`✔ Withdrawal request received! $${state.currentUser.balance.toFixed(2)} will be sent to your ${state.selectedPaymentMethod} account.`);
+            
+            // Reset balance
+            state.currentUser.balance = 0;
+            saveUserData();
+            updateUI();
+            hideWithdrawalModal();
+        }
+
+        // Initialize the app
+        window.onload = init;
+    </script>
+</body>
+</html>
